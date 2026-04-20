@@ -31,11 +31,7 @@ services:
       POSTGRES_USER: ${PSQL_USERNAME}
       POSTGRES_PASSWORD: ${PSQL_PASSWORD}
     volumes:
-      - psql_data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
   redis:
     image: redis:7
-
-
-volumes:
-  psql_data:

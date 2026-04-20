@@ -3,6 +3,7 @@ db.sqlite3
 staticfiles
 mediafiles
 logs
+postgres-data
 *.p8
 *.cert
 __pycache__

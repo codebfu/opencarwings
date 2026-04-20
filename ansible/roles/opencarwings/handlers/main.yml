@@ -1,0 +1,15 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart opencarwings compose service
+  ansible.builtin.systemd:
+    name: "{{ opencarwings_compose_service_name }}"
+    state: restarted
+  listen: restart opencarwings compose
+
+- name: Reload nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

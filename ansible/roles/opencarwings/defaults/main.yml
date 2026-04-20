@@ -1,0 +1,24 @@
+---
+opencarwings_repo_url: "git@github.com:codebfu/opencarwings.git"
+opencarwings_git_version: "master"
+opencarwings_git_force: false
+opencarwings_git_ignore_env_changes: true
+opencarwings_app_dir: "/opt/opencarwings"
+opencarwings_owner: "root"
+opencarwings_group: "root"
+
+opencarwings_tz: "Europe/Paris"
+opencarwings_backend_port: "127.0.0.1:8080"
+opencarwings_tcpserver_port: "0.0.0.0:55230"
+opencarwings_db_name: "opencarwings"
+opencarwings_db_user: "opencarwings"
+opencarwings_db_password: ""
+
+opencarwings_compose_service_name: "opencarwings-compose"
+opencarwings_compose_file: "docker-compose.yml"
+
+opencarwings_domain: ""
+opencarwings_letsencrypt_email: ""
+opencarwings_proxy_pass_url: "http://127.0.0.1:8080"
+
+opencarwings_verify_https: true

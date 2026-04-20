@@ -1,0 +1,251 @@
+---
+- name: Validate mandatory playbook variables
+  ansible.builtin.assert:
+    that:
+      - opencarwings_db_password | trim | length > 0
+      - opencarwings_db_password != "CHANGE_ME_DB_PASSWORD"
+      - opencarwings_domain | trim | length > 0
+      - opencarwings_domain != "CHANGE_ME_DOMAIN"
+      - opencarwings_letsencrypt_email | trim | length > 0
+      - opencarwings_letsencrypt_email != "CHANGE_ME_EMAIL"
+      - opencarwings_backend_port != "0.0.0.0:80"
+      - opencarwings_backend_port != "127.0.0.1:80"
+    fail_msg: "Set required values in ansible/opencarwings.yml and keep opencarwings_backend_port different from :80 to avoid nginx port conflicts."
+
+- name: Install system prerequisites
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - git
+    state: present
+    update_cache: true
+
+- name: Create Docker apt keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Download Docker apt GPG key
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/ubuntu/gpg"
+    dest: "/etc/apt/keyrings/docker.asc"
+    mode: "0644"
+    force: true
+
+- name: Set Docker architecture from current host architecture
+  ansible.builtin.set_fact:
+    docker_repo_arch: "{{ docker_arch_map[ansible_architecture] | default('amd64') }}"
+  vars:
+    docker_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+      armv7l: armhf
+      armv6l: armhf
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ docker_repo_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: Install Docker engine and compose plugin
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Ensure Docker service is enabled and running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Create OpenCARWINGS application directory
+  ansible.builtin.file:
+    path: "{{ opencarwings_app_dir }}"
+    state: directory
+    owner: "{{ opencarwings_owner }}"
+    group: "{{ opencarwings_group }}"
+    mode: "0755"
+
+- name: Clone or update OpenCARWINGS repository
+  ansible.builtin.git:
+    repo: "{{ opencarwings_repo_url }}"
+    dest: "{{ opencarwings_app_dir }}"
+    version: "{{ opencarwings_git_version }}"
+    update: true
+    force: "{{ opencarwings_git_force }}"
+  register: opencarwings_git_sync
+
+- name: Ignore .env git drift managed by Ansible
+  ansible.builtin.command:
+    cmd: git update-index --skip-worktree .env
+    chdir: "{{ opencarwings_app_dir }}"
+  changed_when: false
+  when: opencarwings_git_ignore_env_changes | bool
+
+- name: Render OpenCARWINGS environment file
+  ansible.builtin.template:
+    src: opencarwings.env.j2
+    dest: "{{ opencarwings_app_dir }}/.env"
+    owner: "{{ opencarwings_owner }}"
+    group: "{{ opencarwings_group }}"
+    mode: "0600"
+    force: true
+  register: opencarwings_env_file
+
+- name: Read generated OpenCARWINGS environment file
+  ansible.builtin.slurp:
+    path: "{{ opencarwings_app_dir }}/.env"
+  register: opencarwings_env_rendered
+
+- name: Validate generated .env content
+  ansible.builtin.assert:
+    that:
+      - "'BACKEND_PORT={{ opencarwings_backend_port }}' in env_content"
+      - "'TCPSERVER_PORT={{ opencarwings_tcpserver_port }}' in env_content"
+      - "'PSQL_NAME={{ opencarwings_db_name }}' in env_content"
+      - "'PSQL_USERNAME={{ opencarwings_db_user }}' in env_content"
+    fail_msg: "Generated .env does not contain expected values. Verify role source path and playbook variables."
+  vars:
+    env_content: "{{ opencarwings_env_rendered.content | b64decode }}"
+
+- name: Render systemd service for Docker Compose
+  ansible.builtin.template:
+    src: opencarwings-compose.service.j2
+    dest: "/etc/systemd/system/{{ opencarwings_compose_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  register: opencarwings_compose_unit
+  notify:
+    - Reload systemd daemon
+
+- name: Ensure OpenCARWINGS compose service is enabled and started
+  ansible.builtin.systemd:
+    name: "{{ opencarwings_compose_service_name }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Restart OpenCARWINGS compose service if deployment inputs changed
+  ansible.builtin.systemd:
+    name: "{{ opencarwings_compose_service_name }}"
+    state: restarted
+  when:
+    - opencarwings_git_sync.changed
+      or opencarwings_env_file.changed
+      or opencarwings_compose_unit.changed
+
+- name: Verify Docker Compose stack status
+  ansible.builtin.command:
+    cmd: "docker compose -f {{ opencarwings_compose_file }} ps"
+    chdir: "{{ opencarwings_app_dir }}"
+  changed_when: false
+
+- name: Apply pending compose/systemd changes before nginx setup
+  ansible.builtin.meta: flush_handlers
+
+- name: Install Nginx and Certbot packages
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: true
+
+- name: Remove default nginx site symlink
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Render OpenCARWINGS nginx vhost
+  ansible.builtin.template:
+    src: opencarwings.nginx.conf.j2
+    dest: /etc/nginx/sites-available/opencarwings.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Enable OpenCARWINGS nginx vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/opencarwings.conf
+    dest: /etc/nginx/sites-enabled/opencarwings.conf
+    state: link
+  notify: Reload nginx
+
+- name: Validate nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Ensure nginx is enabled and running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Check if certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ opencarwings_domain }}/fullchain.pem"
+  register: opencarwings_certificate
+
+- name: Request or renew Let's Encrypt certificate using nginx plugin
+  ansible.builtin.command:
+    cmd: >-
+      certbot --nginx --non-interactive --agree-tos
+      --email {{ opencarwings_letsencrypt_email }}
+      --domain {{ opencarwings_domain }}
+      --redirect
+  when: not opencarwings_certificate.stat.exists
+  notify: Reload nginx
+
+- name: Ensure Certbot deploy hook directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Certbot deploy hook for nginx reload
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      systemctl reload nginx
+
+- name: Ensure certbot timer is enabled and running
+  ansible.builtin.systemd:
+    name: certbot.timer
+    enabled: true
+    state: started
+
+- name: Flush handlers before endpoint validation
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify HTTPS endpoint
+  ansible.builtin.uri:
+    url: "https://{{ opencarwings_domain }}/"
+    method: GET
+    status_code:
+      - 200
+      - 301
+      - 302
+      - 401
+      - 403
+    validate_certs: true
+  when: opencarwings_verify_https | bool
