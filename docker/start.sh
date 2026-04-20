@@ -2,6 +2,9 @@
 
 cd /app || echo "Unable to navigate to /app"
 
+# carwings/settings.py is gitignored; Docker uses settings.docker unless overridden
+export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-carwings.settings.docker}"
+
 python manage.py migrate
 python manage.py collectstatic --noinput
 /usr/sbin/crond -f -l 8 &

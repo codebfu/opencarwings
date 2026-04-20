@@ -20,5 +20,10 @@ opencarwings_compose_file: "docker-compose.yml"
 opencarwings_domain: ""
 opencarwings_letsencrypt_email: ""
 opencarwings_proxy_pass_url: "http://127.0.0.1:8080"
+opencarwings_certbot_enabled: true
+opencarwings_certbot_dns_provider: "cloudflare"
+opencarwings_cloudflare_api_token: ""
+opencarwings_certbot_cloudflare_credentials_path: "/root/.secrets/certbot/cloudflare.ini"
+opencarwings_certbot_dns_propagation_seconds: 30
 
 opencarwings_verify_https: true

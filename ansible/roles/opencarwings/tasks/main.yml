@@ -12,6 +12,15 @@
       - opencarwings_backend_port != "127.0.0.1:80"
     fail_msg: "Set required values in ansible/opencarwings.yml and keep opencarwings_backend_port different from :80 to avoid nginx port conflicts."
 
+- name: Validate certbot DNS provider settings
+  ansible.builtin.assert:
+    that:
+      - opencarwings_certbot_dns_provider == "cloudflare"
+      - opencarwings_cloudflare_api_token | trim | length > 0
+      - opencarwings_cloudflare_api_token != "CHANGE_ME_CLOUDFLARE_TOKEN"
+    fail_msg: "Set opencarwings_cloudflare_api_token and keep opencarwings_certbot_dns_provider set to cloudflare for DNS-01 certificate issuance."
+  when: opencarwings_certbot_enabled | bool
+
 - name: Install system prerequisites
   ansible.builtin.apt:
     name:
@@ -110,10 +119,10 @@
 - name: Validate generated .env content
   ansible.builtin.assert:
     that:
-      - "'BACKEND_PORT={{ opencarwings_backend_port }}' in env_content"
-      - "'TCPSERVER_PORT={{ opencarwings_tcpserver_port }}' in env_content"
-      - "'PSQL_NAME={{ opencarwings_db_name }}' in env_content"
-      - "'PSQL_USERNAME={{ opencarwings_db_user }}' in env_content"
+      - "'BACKEND_PORT=' ~ opencarwings_backend_port in env_content"
+      - "'TCPSERVER_PORT=' ~ opencarwings_tcpserver_port in env_content"
+      - "'PSQL_NAME=' ~ opencarwings_db_name in env_content"
+      - "'PSQL_USERNAME=' ~ opencarwings_db_user in env_content"
     fail_msg: "Generated .env does not contain expected values. Verify role source path and playbook variables."
   vars:
     env_content: "{{ opencarwings_env_rendered.content | b64decode }}"
@@ -159,31 +168,33 @@
     name:
       - nginx
       - certbot
-      - python3-certbot-nginx
+      - python3-certbot-dns-cloudflare
     state: present
     update_cache: true
 
-- name: Remove default nginx site symlink
+- name: Ensure default nginx site symlink is present
   ansible.builtin.file:
-    path: /etc/nginx/sites-enabled/default
-    state: absent
-  notify: Reload nginx
-
-- name: Render OpenCARWINGS nginx vhost
-  ansible.builtin.template:
-    src: opencarwings.nginx.conf.j2
-    dest: /etc/nginx/sites-available/opencarwings.conf
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Reload nginx
-
-- name: Enable OpenCARWINGS nginx vhost
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/opencarwings.conf
-    dest: /etc/nginx/sites-enabled/opencarwings.conf
+    src: /etc/nginx/sites-available/default
+    dest: /etc/nginx/sites-enabled/default
     state: link
   notify: Reload nginx
+
+- name: Ensure certbot secrets directory exists
+  ansible.builtin.file:
+    path: "{{ opencarwings_certbot_cloudflare_credentials_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install Cloudflare credentials for certbot DNS-01
+  ansible.builtin.copy:
+    dest: "{{ opencarwings_certbot_cloudflare_credentials_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      dns_cloudflare_api_token = {{ opencarwings_cloudflare_api_token }}
 
 - name: Validate nginx configuration
   ansible.builtin.command: nginx -t
@@ -200,15 +211,58 @@
     path: "/etc/letsencrypt/live/{{ opencarwings_domain }}/fullchain.pem"
   register: opencarwings_certificate
 
-- name: Request or renew Let's Encrypt certificate using nginx plugin
-  ansible.builtin.command:
-    cmd: >-
-      certbot --nginx --non-interactive --agree-tos
-      --email {{ opencarwings_letsencrypt_email }}
-      --domain {{ opencarwings_domain }}
-      --redirect
+- name: Disable OpenCARWINGS nginx site until certificate exists
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/opencarwings.conf
+    state: absent
   when: not opencarwings_certificate.stat.exists
   notify: Reload nginx
+
+- name: Apply pending nginx config changes before certbot
+  ansible.builtin.meta: flush_handlers
+
+- name: Request Let's Encrypt certificate using DNS-01
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --dns-cloudflare
+      --dns-cloudflare-credentials {{ opencarwings_certbot_cloudflare_credentials_path }}
+      --dns-cloudflare-propagation-seconds {{ opencarwings_certbot_dns_propagation_seconds }}
+      --non-interactive --agree-tos --keep-until-expiring
+      --email {{ opencarwings_letsencrypt_email }}
+      --domain {{ opencarwings_domain }}
+  register: opencarwings_certbot_result
+  changed_when: "'Congratulations!' in opencarwings_certbot_result.stdout"
+  when:
+    - opencarwings_certbot_enabled | bool
+    - not opencarwings_certificate.stat.exists
+  notify: Reload nginx
+
+- name: Refresh certificate status after certbot request
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ opencarwings_domain }}/fullchain.pem"
+  register: opencarwings_certificate
+
+- name: Render OpenCARWINGS nginx TLS vhost
+  ansible.builtin.template:
+    src: opencarwings.nginx.conf.j2
+    dest: /etc/nginx/sites-available/opencarwings.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: opencarwings_certificate.stat.exists
+  notify: Reload nginx
+
+- name: Enable OpenCARWINGS nginx TLS vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/opencarwings.conf
+    dest: /etc/nginx/sites-enabled/opencarwings.conf
+    state: link
+  when: opencarwings_certificate.stat.exists
+  notify: Reload nginx
+
+- name: Validate nginx configuration with TLS vhost
+  ansible.builtin.command: nginx -t
+  changed_when: false
 
 - name: Ensure Certbot deploy hook directory exists
   ansible.builtin.file:
