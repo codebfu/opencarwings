@@ -96,13 +96,6 @@
     force: "{{ opencarwings_git_force }}"
   register: opencarwings_git_sync
 
-- name: Ignore .env git drift managed by Ansible
-  ansible.builtin.command:
-    cmd: git update-index --skip-worktree .env
-    chdir: "{{ opencarwings_app_dir }}"
-  changed_when: false
-  when: opencarwings_git_ignore_env_changes | bool
-
 - name: Render OpenCARWINGS environment file
   ansible.builtin.template:
     src: opencarwings.env.j2
@@ -115,20 +108,13 @@
 
 - name: Render Django Docker settings file
   ansible.builtin.template:
-    src: settings.docker.py.j2
-    dest: "{{ opencarwings_app_dir }}/carwings/settings.docker.py"
+    src: settings.py.j2
+    dest: "{{ opencarwings_app_dir }}/carwings/settings.py"
     owner: "{{ opencarwings_owner }}"
     group: "{{ opencarwings_group }}"
     mode: "0644"
     force: true
   register: opencarwings_settings_docker
-
-- name: Ignore settings.docker.py git drift managed by Ansible
-  ansible.builtin.command:
-    cmd: git update-index --skip-worktree carwings/settings.docker.py
-    chdir: "{{ opencarwings_app_dir }}"
-  changed_when: false
-  when: opencarwings_git_ignore_settings_docker_changes | bool
 
 - name: Read generated OpenCARWINGS environment file
   ansible.builtin.slurp:

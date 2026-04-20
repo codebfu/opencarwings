@@ -101,7 +101,7 @@ DATABASES = {
         'USER': os.environ.get('PSQL_USER', 'mysql-user'),
         'PASSWORD': os.environ.get('PSQL_PASSWORD', 'mysql-password'),
         'HOST': os.environ.get('PSQL_DATABASE_HOST', 'db'),
-        'PORT': os.environ.get('PSQL_DATABASE_PORT', 3306)
+        'PORT': os.environ.get('PSQL_DATABASE_PORT', '5432')
 #        'OPTIONS': {'init_command': 'SET storage_engine=INNODB;'}
     }
 }
