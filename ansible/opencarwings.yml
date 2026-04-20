@@ -9,6 +9,7 @@
     opencarwings_domain: "CHANGE_ME_DOMAIN"
     opencarwings_letsencrypt_email: "CHANGE_ME_EMAIL"
     opencarwings_cloudflare_api_token: "CHANGE_ME_CLOUDFLARE_TOKEN"
+    opencarwings_django_secret_key: "CHANGE_ME_DJANGO_SECRET_KEY"
 
   roles:
     - role: opencarwings

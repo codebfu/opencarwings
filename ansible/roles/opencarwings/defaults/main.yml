@@ -27,3 +27,6 @@ opencarwings_certbot_cloudflare_credentials_path: "/root/.secrets/certbot/cloudf
 opencarwings_certbot_dns_propagation_seconds: 30
 
 opencarwings_verify_https: true
+
+opencarwings_django_secret_key: ""
+opencarwings_git_ignore_settings_docker_changes: true

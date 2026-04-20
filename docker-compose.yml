@@ -6,7 +6,6 @@ services:
       context: .
       dockerfile: ./Dockerfile
     environment:
-      DJANGO_SETTINGS_MODULE: carwings.settings.docker
       PSQL_DATABASE: ${PSQL_NAME}
       PSQL_USER: ${PSQL_USERNAME}
       PSQL_PASSWORD: ${PSQL_PASSWORD}
