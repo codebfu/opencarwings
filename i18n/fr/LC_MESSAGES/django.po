@@ -1,0 +1,92 @@
+# French translation for the PACKAGE package.
+# This file is distributed under the same license as the PACKAGE package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-22 11:07+0000\n"
+"PO-Revision-Date: 2026-04-21 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: French <fr@li.org>\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Too many timer commands, please delete one and try again"
+msgstr "Trop de programmations sont enregistrees, supprimez-en une puis reessayez"
+
+msgid "Failed to send SMS message to TCU. Please try again in a moment."
+msgstr "Echec de l'envoi du SMS au TCU. Veuillez reessayer dans un instant."
+
+msgid "Charge stop"
+msgstr "Arret de charge"
+
+msgid "Charge start"
+msgstr "Demarrage de charge"
+
+msgid "Charge cable reminder"
+msgstr "Rappel cable de charge"
+
+msgid "A/C on"
+msgstr "Climatisation activee"
+
+msgid "A/C off"
+msgstr "Climatisation desactivee"
+
+msgid "Configuration read"
+msgstr "Configuration lue"
+
+msgid "A/C auto off"
+msgstr "Climatisation arretee automatiquement"
+
+msgid "Quick charge stop"
+msgstr "Arret de charge rapide"
+
+msgid "Battery heater start"
+msgstr "Demarrage du chauffage batterie"
+
+msgid "Battery heater stop"
+msgstr "Arret du chauffage batterie"
+
+msgid "Charge error"
+msgstr "Erreur de charge"
+
+msgid "A/C error"
+msgstr "Erreur de climatisation"
+
+msgid "Command timeout"
+msgstr "Delai d'attente de la commande depasse"
+
+msgid "Error"
+msgstr "Erreur"
+
+msgid "No command"
+msgstr "Aucune commande"
+
+msgid "Refresh data"
+msgstr "Rafraichir les donnees"
+
+msgid "Read configuration"
+msgstr "Lire la configuration"
+
+msgid "Waiting"
+msgstr "En attente"
+
+msgid "Pending"
+msgstr "En cours"
+
+msgid "Unknown"
+msgstr "Inconnu"
+
+msgid "Success"
+msgstr "Succes"
+
+msgid "Disabled"
+msgstr "Desactive"
+
+msgid "Enabled"
+msgstr "Active"
+

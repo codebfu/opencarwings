@@ -546,10 +546,10 @@ def index(request):
 def signup(request):
     if request.user.is_authenticated:
         return redirect('/')
+    if not django.conf.settings.SIGNUP_ENABLED:
+        messages.error(request, _("Sign-up is not enabled on this instance"))
+        return redirect('signin')
     if request.method == 'POST':
-        if not django.conf.settings.SIGNUP_ENABLED:
-            messages.error(request, _("Sign-up is not enabled on this instance"))
-            return redirect('signin')
         form = SignUpForm(request.POST)
         if form.is_valid():
             form.save()

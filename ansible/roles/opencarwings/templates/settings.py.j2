@@ -37,6 +37,16 @@ DEBUG = False
 {% endif %}
 ALLOWED_HOSTS = {{ _allowed_hosts | unique | list | to_json }}
 
+{% set _csrf_trusted_origins = [] %}
+{% for _host in _allowed_hosts | unique | list %}
+{% set _clean_host = _host | string | trim %}
+{% if _clean_host %}
+{% set _ = _csrf_trusted_origins.append('https://' ~ _clean_host) %}
+{% set _ = _csrf_trusted_origins.append('http://' ~ _clean_host) %}
+{% endif %}
+{% endfor %}
+CSRF_TRUSTED_ORIGINS = {{ _csrf_trusted_origins | unique | list | to_json }}
+
 
 # Application definition
 
@@ -204,7 +214,7 @@ SWAGGER_SETTINGS = {
 # Minutes
 LEAF_COMMAND_TIMEOUT = 5
 AUTH_USER_MODEL = "db.User"
-SIGNUP_ENABLED = {{ opencarwings_signup_enabled | bool | to_json }}
+SIGNUP_ENABLED = {{ (opencarwings_signup_enabled | bool) | ternary('True', 'False') }}
 ACTIVATION_SMS_MESSAGE = "NISSAN_EVIT_TELEMATICS_CENTER"
 
 SMS_PROVIDERS = {
