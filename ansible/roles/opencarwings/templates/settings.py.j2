@@ -150,7 +150,11 @@ REST_FRAMEWORK = {
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr'
+
+LANGUAGES = [
+    ('fr', 'French'),
+]
 
 TIME_ZONE = 'UTC'
 
@@ -200,7 +204,7 @@ SWAGGER_SETTINGS = {
 # Minutes
 LEAF_COMMAND_TIMEOUT = 5
 AUTH_USER_MODEL = "db.User"
-SIGNUP_ENABLED = True
+SIGNUP_ENABLED = {{ opencarwings_signup_enabled | bool | to_json }}
 ACTIVATION_SMS_MESSAGE = "NISSAN_EVIT_TELEMATICS_CENTER"
 
 SMS_PROVIDERS = {

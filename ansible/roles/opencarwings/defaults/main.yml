@@ -30,3 +30,4 @@ opencarwings_verify_https: true
 
 opencarwings_django_secret_key: ""
 opencarwings_git_ignore_settings_docker_changes: true
+opencarwings_signup_enabled: true
