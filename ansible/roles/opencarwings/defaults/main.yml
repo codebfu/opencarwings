@@ -13,6 +13,8 @@ opencarwings_tcpserver_port: "0.0.0.0:55230"
 opencarwings_db_name: "opencarwings"
 opencarwings_db_user: "opencarwings"
 opencarwings_db_password: ""
+opencarwings_smsapi_base_url: "http://smsapi:8000"
+opencarwings_smsapi_timeout: "10"
 
 opencarwings_compose_service_name: "opencarwings-compose"
 opencarwings_compose_file: "docker-compose.yml"

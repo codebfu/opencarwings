@@ -5,6 +5,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+    depends_on:
+      - db
+      - redis
+      - smsapi
     environment:
       PSQL_DATABASE: ${PSQL_NAME}
       PSQL_USER: ${PSQL_USERNAME}
@@ -13,6 +17,8 @@ services:
       PSQL_DATABASE_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      SMSAPI_BASE_URL: ${SMSAPI_BASE_URL}
+      SMSAPI_TIMEOUT: ${SMSAPI_TIMEOUT}
       TZ: ${TZ}
     restart: always
     volumes:
@@ -35,3 +41,6 @@ services:
     restart: unless-stopped
   redis:
     image: redis:7
+  smsapi:
+    image: git.codebfu.fr:5050/codebfu/smsapi:latest
+    restart: unless-stopped

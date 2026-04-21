@@ -216,8 +216,11 @@ LEAF_COMMAND_TIMEOUT = 5
 AUTH_USER_MODEL = "db.User"
 SIGNUP_ENABLED = {{ (opencarwings_signup_enabled | bool) | ternary('True', 'False') }}
 ACTIVATION_SMS_MESSAGE = "NISSAN_EVIT_TELEMATICS_CENTER"
+SMSAPI_BASE_URL = os.environ.get('SMSAPI_BASE_URL', 'http://smsapi:8000')
+SMSAPI_TIMEOUT = float(os.environ.get('SMSAPI_TIMEOUT', '10'))
 
 SMS_PROVIDERS = {
+    'smsapi': ('SMS API', 'tculink.sms.smsapi.ProviderSmsApi'),
     'hologram': ('Hologram SIM (recommended)', 'tculink.sms.hologram.ProviderHologram'),
     'monogoto': ('Monogoto', 'tculink.sms.monogoto.ProviderMonogoto'),
     '46elks': ('46elks', 'tculink.sms.46elks.Provider46elks'),

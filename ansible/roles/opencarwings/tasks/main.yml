@@ -128,6 +128,8 @@
       - "'TCPSERVER_PORT=' ~ opencarwings_tcpserver_port in env_content"
       - "'PSQL_NAME=' ~ opencarwings_db_name in env_content"
       - "'PSQL_USERNAME=' ~ opencarwings_db_user in env_content"
+      - "'SMSAPI_BASE_URL=' ~ opencarwings_smsapi_base_url in env_content"
+      - "'SMSAPI_TIMEOUT=' ~ opencarwings_smsapi_timeout in env_content"
     fail_msg: "Generated .env does not contain expected values. Verify role source path and playbook variables."
   vars:
     env_content: "{{ opencarwings_env_rendered.content | b64decode }}"

@@ -24,6 +24,17 @@ Server for running CARWINGS services for Nissan LEAF.
 
 Please visit this [Wiki article](https://github.com/developerfromjokela/opencarwings/wiki/Self%E2%80%90hosting-OpenCARWINGS-with-docker%E2%80%90compose) regarding self-hosting using docker
 
+### Optional SMS API service
+
+The Compose stack can run an internal `smsapi` service using:
+
+- image: `git.codebfu.fr:5050/codebfu/smsapi:latest`
+- base URL from app: `SMSAPI_BASE_URL` (default `http://smsapi:8000`)
+- request timeout (seconds): `SMSAPI_TIMEOUT` (default `10`)
+
+In the web UI, select the `SMS API` provider and set the destination phone number (`0XXXXXXXXX` or `+33XXXXXXXXX`).
+The Django backend will call `POST /sms/send` with retries on network/`5xx` errors.
+
 ## Home Assistant Add-on
 Add-on is available in repo [czapeczek/ha_opencarwings](https://github.com/czapeczek/ha_opencarwings).
 Thanks to @czapeczek for making the add-on!
