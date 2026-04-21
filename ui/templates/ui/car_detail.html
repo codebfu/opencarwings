@@ -574,7 +574,7 @@
                     {% for provider in providers %}
                     <div class="flex items-center my-2">
                         <input id="sms-radio-{{provider.id}}"
-                               {% if provider.id == car.sms_config.provider %} checked {% endif %}
+                               {% if provider.id == sms_selected_provider %} checked {% endif %}
                                type="radio" value="{{provider.id}}" name="sms-provider" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500">
                         <label for="sms-radio-{{provider.id}}" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-200">{% translate provider.name %}</label>
                     </div>
@@ -585,7 +585,7 @@
                         {% for field in provider.fields %}
                         <div>
                             <label for="field-{{ field.0 }}" class="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">{{ field.1 }}</label>
-                            <input type="text" id="field-{{ field.0 }}" value="{{ car.sms_config|get_item:field.0 }}" maxlength="512" name="{{provider.id}}-{{ field.0 }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg dark:bg-gray-700 dark:text-gray-300 focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                            <input type="text" id="field-{{ field.0 }}" value="{{ sms_field_values|get_item:field.0 }}" maxlength="512" name="{{provider.id}}-{{ field.0 }}" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg dark:bg-gray-700 dark:text-gray-300 focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
                         </div>
                         {% endfor %}
                         {% if provider.help %}
@@ -1036,7 +1036,11 @@
 
             function updateFields() {
                 providerBoxes.forEach(i => i.classList.add('hidden'))
-                const selectedValue = document.querySelector('input[name="sms-provider"]:checked').value;
+                const selectedInput = document.querySelector('input[name="sms-provider"]:checked');
+                if (!selectedInput) {
+                    return;
+                }
+                const selectedValue = selectedInput.value;
                 document.getElementById(`${selectedValue}-fields`).classList.remove('hidden')
             }
 

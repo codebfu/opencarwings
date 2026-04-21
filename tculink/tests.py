@@ -1,10 +1,13 @@
 from pprint import pprint
+from unittest.mock import patch, Mock
 
 from django.test import TestCase
 
 from tculink.gdc_proto.parser import parse_gdc_packet
 from tculink.gdc_proto.responses import create_charge_status_response, create_charge_request_response, \
     create_ac_setting_response, create_ac_stop_response, create_config_read
+from tculink.sms import send_using_provider
+from tculink.sms.freemobile import ProviderFreeMobile
 
 
 class DataPacketParse(TestCase):
@@ -44,3 +47,39 @@ class DataPacketParse(TestCase):
         print("AC stop true", create_ac_stop_response(True).hex(' ').upper())
         print("AC stop true", create_ac_stop_response(True).hex(' ').upper())
         print("Read config", create_config_read().hex(' ').upper())
+
+
+class FreeMobileProviderTests(TestCase):
+    @patch("tculink.sms.freemobile.requests.get")
+    def test_send_returns_true_on_200(self, mocked_get):
+        mocked_get.return_value = Mock(status_code=200, text="")
+        provider = ProviderFreeMobile()
+        result = provider.send(
+            "NISSAN_EVIT_TELEMATICS_CENTER",
+            {
+                "provider": "freemobile",
+                "mobile_number": "+33123456789",
+                "free_user": "12345678",
+                "free_api_key": "apikey",
+            },
+        )
+        self.assertTrue(result)
+
+    @patch("tculink.sms.freemobile.requests.get")
+    def test_send_returns_false_on_auth_error(self, mocked_get):
+        mocked_get.return_value = Mock(status_code=403, text="forbidden")
+        provider = ProviderFreeMobile()
+        result = provider.send(
+            "NISSAN_EVIT_TELEMATICS_CENTER",
+            {
+                "provider": "freemobile",
+                "mobile_number": "+33123456789",
+                "free_user": "12345678",
+                "free_api_key": "apikey",
+            },
+        )
+        self.assertFalse(result)
+
+    def test_dispatch_unknown_provider_raises(self):
+        with self.assertRaises(Exception):
+            send_using_provider("NISSAN_EVIT_TELEMATICS_CENTER", {"provider": "missing"})

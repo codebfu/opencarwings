@@ -22,7 +22,7 @@ from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from db.models import Car, COMMAND_TYPES, AlertHistory, EVInfo, LocationInfo, TCUConfiguration, PERIODIC_REFRESH, \
+from db.models import Car, CarSMSCredential, COMMAND_TYPES, AlertHistory, EVInfo, LocationInfo, TCUConfiguration, PERIODIC_REFRESH, \
     PERIODIC_REFRESH_ACTIVE, CAR_COLOR, CRMLatest, CRMLifetime, CRMTripRecord, CRMMonthlyRecord, CRMChargeHistoryRecord, \
     CRMChargeRecord, CRMABSHistoryRecord, CRMExcessiveIdlingRecord, CRMExcessiveAirconRecord, CRMTroubleRecord, \
     CRMMSNRecord, DOTFile, ProbeConfig, CRMDistanceRecord
@@ -482,7 +482,26 @@ def car_detail(request, vin):
                 sms_config[field[0]] = field_val.strip()
 
             if fields_correct:
-                car.sms_config = sms_config
+                car.sms_provider = provider_id
+                if provider_id == "freemobile":
+                    credential, _ = CarSMSCredential.objects.get_or_create(
+                        car=car,
+                        defaults={"provider": "freemobile"},
+                    )
+                    credential.provider = "freemobile"
+                    credential.set_free_mobile_credentials(
+                        sms_config.get("mobile_number", ""),
+                        sms_config.get("free_user", ""),
+                        sms_config.get("free_api_key", ""),
+                    )
+                    credential.save()
+                    car.sms_config = {'provider': provider_id}
+                else:
+                    car.sms_config = sms_config
+                    try:
+                        car.sms_credential.delete()
+                    except CarSMSCredential.DoesNotExist:
+                        ...
 
                 form = SettingsForm(request.POST)
                 # check whether it's valid:
@@ -522,11 +541,14 @@ def car_detail(request, vin):
         channel_map.append(new_folder)
 
     alerts = AlertHistory.objects.filter(car=car).order_by('-timestamp')[:30]
+    selected_provider = car.get_selected_sms_provider()
     context = {
         'car': car,
         'alerts': alerts,
         'command_choices': FILTERED_COMMANDTYPES,
         "providers": UI_SMS_PROVIDERS,
+        "sms_selected_provider": selected_provider,
+        "sms_field_values": car.get_sms_form_configuration(),
         "show_settings": show_settings,
         "periodic_refresh_choices": PERIODIC_REFRESH,
         "periodic_refresh_running_choices": PERIODIC_REFRESH_ACTIVE,
@@ -706,7 +728,12 @@ def setup_step5(request):
             new_car.tcu_serial=composed_car['unit_id']
             new_car.iccid=composed_car['sim_id']
             new_car.tcu_model=composed_car['tcu_id']
-            new_car.sms_config=composed_car['sms']
+            composed_sms = composed_car['sms']
+            new_car.sms_provider = composed_sms.get('provider', 'manual')
+            if new_car.sms_provider == "freemobile":
+                new_car.sms_config = {'provider': 'freemobile'}
+            else:
+                new_car.sms_config = composed_sms
             new_car.nickname=composed_car['nickname']
             ev_info = EVInfo()
             tcu_config = TCUConfiguration()
@@ -719,6 +746,14 @@ def setup_step5(request):
             new_car.tcu_configuration = tcu_config
             new_car.owner = request.user
             new_car.save()
+            if new_car.sms_provider == "freemobile":
+                credential = CarSMSCredential(car=new_car, provider="freemobile")
+                credential.set_free_mobile_credentials(
+                    composed_sms.get("mobile_number", ""),
+                    composed_sms.get("free_user", ""),
+                    composed_sms.get("free_api_key", ""),
+                )
+                credential.save()
             del request.session['step']
             return redirect('/')
     return render(request, 'ui/setup/step5.html', {'steps': SETUP_STEPS, "current_step": request.session['step']['current_step']})

@@ -70,7 +70,11 @@
 
                     function updateFields() {
                         providerBoxes.forEach(i => i.classList.add('hidden'))
-                        const selectedValue = document.querySelector('input[name="sms-provider"]:checked').value;
+                        const selectedInput = document.querySelector('input[name="sms-provider"]:checked');
+                        if (!selectedInput) {
+                            return;
+                        }
+                        const selectedValue = selectedInput.value;
                         document.getElementById(`${selectedValue}-fields`).classList.remove('hidden')
                     }
 

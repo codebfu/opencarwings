@@ -210,6 +210,7 @@ SIGNUP_ENABLED = True
 ACTIVATION_SMS_MESSAGE = "NISSAN_EVIT_TELEMATICS_CENTER"
 SMSAPI_BASE_URL = os.environ.get('SMSAPI_BASE_URL', 'http://smsapi:8000')
 SMSAPI_TIMEOUT = float(os.environ.get('SMSAPI_TIMEOUT', '10'))
+SMS_CREDENTIALS_ENCRYPTION_KEY = os.environ.get('SMS_CREDENTIALS_ENCRYPTION_KEY', '')
 CARWINGS_GATEWAY_SHARED_SECRET = os.environ.get('CARWINGS_GATEWAY_SHARED_SECRET', '')
 CARWINGS_MAX_HTTP_PAYLOAD_BYTES = int(os.environ.get('CARWINGS_MAX_HTTP_PAYLOAD_BYTES', '1048576'))
 
@@ -222,6 +223,7 @@ SMS_PROVIDERS = {
     'ondevice': ('SMS from your device', 'tculink.sms.ondevice.ProviderOnDevice'),
     'smsgateway': ('Use your old smartphone', 'tculink.sms.smsgateway.ProviderSMSGateway'),
     'manual': ('Manual', 'tculink.sms.manual.ProviderManual'),
+    'freemobile': ('Free Mobile', 'tculink.sms.freemobile.ProviderFreeMobile'),
 }
 
 CRISPY_TEMPLATE_PACK = "tailwind"

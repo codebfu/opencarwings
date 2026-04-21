@@ -6,7 +6,14 @@ from .models import (
     LocationInfo,
     EVInfo,
     AlertHistory,
-    Car, User, SendToCarLocation, CRMLatest, CRMLifetime, CRMExcessiveAirconRecord, CRMExcessiveIdlingRecord,
+    Car,
+    CarSMSCredential,
+    User,
+    SendToCarLocation,
+    CRMLatest,
+    CRMLifetime,
+    CRMExcessiveAirconRecord,
+    CRMExcessiveIdlingRecord,
     CRMMonthlyRecord, CRMMSNRecord, CRMChargeRecord, CRMChargeHistoryRecord, CRMABSHistoryRecord, CRMTroubleRecord,
     CRMTripRecord, RoutePlan, DOTFile, CRMDistanceRecord, ProbeConfig, CommandTimerSetting
 )
@@ -82,7 +89,7 @@ class CarAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Vehicle Info', {
-            'fields': ('vin', 'sms_config', 'vehicle_code1', 'vehicle_code2',
+            'fields': ('vin', 'sms_provider', 'sms_config', 'vehicle_code1', 'vehicle_code2',
                        'vehicle_code3', 'vehicle_code4', 'nickname', 'owner', 'odometer', 'signal_level', 'carrier', 'map_version', 'navi_version')
         }),
         ('Timer', {
@@ -100,6 +107,20 @@ class CarAdmin(admin.ModelAdmin):
                        'command_payload', 'command_type', 'command_request_time')
         }),
     )
+
+
+@admin.register(CarSMSCredential)
+class CarSMSCredentialAdmin(admin.ModelAdmin):
+    list_display = ("car", "provider", "updated_at")
+    readonly_fields = (
+        "mobile_number_encrypted",
+        "free_user_encrypted",
+        "free_api_key_encrypted",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = ("car__vin", "provider")
+    list_filter = ("provider", "updated_at")
 
 
 @admin.register(User)

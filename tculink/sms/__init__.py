@@ -2,7 +2,10 @@ from django.conf import settings
 
 
 def send_using_provider(message, configuration):
-    parts = settings.SMS_PROVIDERS[configuration.get('provider', '')][1].split('.')
+    provider_id = configuration.get('provider', '')
+    if provider_id not in settings.SMS_PROVIDERS:
+        raise Exception(f"Unknown SMS provider: {provider_id}")
+    parts = settings.SMS_PROVIDERS[provider_id][1].split('.')
     module = ".".join(parts[:-1])
     m = __import__( module )
     for comp in parts[1:]:

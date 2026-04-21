@@ -353,7 +353,7 @@ def command_api(request, vin):
         command_type = int(command_type)
         if command_type in dict(COMMAND_TYPES):
             try:
-                sms_result = send_using_provider(django.conf.settings.ACTIVATION_SMS_MESSAGE, car.sms_config)
+                sms_result = send_using_provider(django.conf.settings.ACTIVATION_SMS_MESSAGE, car.get_sms_runtime_config())
                 if not sms_result:
                     raise Exception("Could not send SMS message")
             except Exception as e:

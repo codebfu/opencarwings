@@ -49,8 +49,10 @@ class Command(BaseCommand):
                 if car.last_connection is not None and car.last_connection < period:
                     print(f"Car {car.vin}: Requesting update")
                     try:
-                        sms_result = send_using_provider(settings.ACTIVATION_SMS_MESSAGE,
-                                                         car.sms_config)
+                        sms_result = send_using_provider(
+                            settings.ACTIVATION_SMS_MESSAGE,
+                            car.get_sms_runtime_config(),
+                        )
                         if not sms_result:
                             raise Exception("Could not send SMS message")
                     except Exception as e:
@@ -186,8 +188,10 @@ class Command(BaseCommand):
                         try:
                             print(f"Car {car.vin}: Requesting timer {timer.id}, cmd type: {timer.command_type}")
                             try:
-                                sms_result = send_using_provider(settings.ACTIVATION_SMS_MESSAGE,
-                                                                 car.sms_config)
+                                sms_result = send_using_provider(
+                                    settings.ACTIVATION_SMS_MESSAGE,
+                                    car.get_sms_runtime_config(),
+                                )
                                 if not sms_result:
                                     raise Exception("Could not send SMS message")
                             except Exception as e:

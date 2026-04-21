@@ -9,6 +9,7 @@ from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from tculink.utils.secrets import decrypt_secret, encrypt_secret
 
 ALERT_TYPES = (
     (1, _('Charge stop')),
@@ -100,6 +101,18 @@ PROBE_CONFIG_RESULTS = (
 TIMER_TYPE = (
     (0, "One-time"),
     (1, "Repeating")
+)
+
+SMS_PROVIDER_CHOICES = (
+    ("smsapi", "SMS API"),
+    ("hologram", "Hologram SIM"),
+    ("monogoto", "Monogoto"),
+    ("46elks", "46elks"),
+    ("webhook", "Webhook"),
+    ("ondevice", "SMS from your device"),
+    ("smsgateway", "Use your old smartphone"),
+    ("manual", "Manual"),
+    ("freemobile", "Free Mobile"),
 )
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -258,9 +271,40 @@ class CommandTimerSetting(models.Model):
     date = models.DateField(null=True, blank=True)
 
 
+class CarSMSCredential(models.Model):
+    car = models.OneToOneField("Car", on_delete=models.CASCADE, related_name="sms_credential")
+    provider = models.CharField(max_length=32, choices=SMS_PROVIDER_CHOICES, default="freemobile")
+    mobile_number_encrypted = models.TextField()
+    free_user_encrypted = models.TextField()
+    free_api_key_encrypted = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def set_free_mobile_credentials(self, mobile_number, free_user, free_api_key):
+        self.mobile_number_encrypted = encrypt_secret(mobile_number.strip())
+        self.free_user_encrypted = encrypt_secret(free_user.strip())
+        self.free_api_key_encrypted = encrypt_secret(free_api_key.strip())
+
+    def get_runtime_configuration(self):
+        return {
+            "provider": "freemobile",
+            "mobile_number": decrypt_secret(self.mobile_number_encrypted),
+            "free_user": decrypt_secret(self.free_user_encrypted),
+            "free_api_key": decrypt_secret(self.free_api_key_encrypted),
+        }
+
+    def get_form_configuration(self):
+        return {
+            "mobile_number": decrypt_secret(self.mobile_number_encrypted),
+            "free_user": decrypt_secret(self.free_user_encrypted),
+            "free_api_key": "",
+        }
+
+
 class Car(models.Model):
     vin = models.CharField(max_length=18, unique=True)
     nickname = models.CharField(max_length=64, default="LEAF")
+    sms_provider = models.CharField(max_length=32, choices=SMS_PROVIDER_CHOICES, default="manual")
     sms_config = models.JSONField()
     color = models.TextField(choices=CAR_COLOR, default="l_planetblue")
     vehicle_code1 = models.IntegerField(default=0)
@@ -300,6 +344,36 @@ class Car(models.Model):
     tcu_version = models.CharField(max_length=64, null=True, default=None, blank=True)
     favorite_channels = models.JSONField(default=dict)
     custom_channels = models.JSONField(default=dict)
+
+    def get_selected_sms_provider(self):
+        if self.sms_provider:
+            return self.sms_provider
+        if isinstance(self.sms_config, dict):
+            return self.sms_config.get("provider", "manual")
+        return "manual"
+
+    def get_sms_runtime_config(self):
+        provider = self.get_selected_sms_provider()
+        if provider == "freemobile":
+            try:
+                return self.sms_credential.get_runtime_configuration()
+            except CarSMSCredential.DoesNotExist as exc:
+                raise Exception("Missing Free Mobile credentials for this car") from exc
+
+        config = dict(self.sms_config or {})
+        config["provider"] = provider
+        return config
+
+    def get_sms_form_configuration(self):
+        provider = self.get_selected_sms_provider()
+        config = dict(self.sms_config or {})
+        config["provider"] = provider
+        if provider == "freemobile":
+            try:
+                config.update(self.sms_credential.get_form_configuration())
+            except CarSMSCredential.DoesNotExist:
+                ...
+        return config
 
     def __str__(self):
         return self.vin
