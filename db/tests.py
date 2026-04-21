@@ -4,7 +4,7 @@ from django.test import override_settings
 from db.models import Car, CarSMSCredential, EVInfo, LocationInfo, TCUConfiguration, User
 
 
-@override_settings(SMS_CREDENTIALS_ENCRYPTION_KEY="unit-test-secret")
+@override_settings(SECRET_KEY="unit-test-secret-key-for-sms-crypto-tests")
 class CarSMSCredentialTests(TestCase):
     def _create_car(self):
         user = User.objects.create_user(username="alice", password="password", tcu_pass_hash="HASHED")

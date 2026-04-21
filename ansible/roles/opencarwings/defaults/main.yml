@@ -15,7 +15,6 @@ opencarwings_db_user: "opencarwings"
 opencarwings_db_password: ""
 opencarwings_smsapi_base_url: "http://smsapi:8000"
 opencarwings_smsapi_timeout: "10"
-opencarwings_sms_credentials_encryption_key: "CHANGE_ME_SMS_CREDENTIALS_ENCRYPTION_KEY"
 opencarwings_registry_auth_enabled: true
 opencarwings_registry_url: "git.codebfu.fr:5050"
 opencarwings_registry_username: ""

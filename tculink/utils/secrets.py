@@ -6,12 +6,20 @@ from Crypto.Random import get_random_bytes
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+# Domain separation from other uses of SECRET_KEY (same pattern as Django signing salt).
+_SMS_CREDENTIALS_KEY_CONTEXT = "opencarwings:sms_credentials:v1"
+
+
+def sms_credentials_encryption_key_bytes():
+    secret_key = getattr(settings, "SECRET_KEY", "") or ""
+    if not str(secret_key).strip():
+        raise ImproperlyConfigured("SECRET_KEY is required for SMS credential encryption")
+    material = f"{_SMS_CREDENTIALS_KEY_CONTEXT}|{secret_key}"
+    return hashlib.sha256(material.encode("utf-8")).digest()
+
 
 def _get_encryption_key():
-    configured_key = getattr(settings, "SMS_CREDENTIALS_ENCRYPTION_KEY", "").strip()
-    if not configured_key:
-        raise ImproperlyConfigured("SMS_CREDENTIALS_ENCRYPTION_KEY is required")
-    return hashlib.sha256(configured_key.encode("utf-8")).digest()
+    return sms_credentials_encryption_key_bytes()
 
 
 def encrypt_secret(value):

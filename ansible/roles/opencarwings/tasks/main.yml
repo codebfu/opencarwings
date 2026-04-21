@@ -12,8 +12,6 @@
       - opencarwings_backend_port != "127.0.0.1:80"
       - opencarwings_django_secret_key | trim | length > 0
       - opencarwings_django_secret_key != "CHANGE_ME_DJANGO_SECRET_KEY"
-      - opencarwings_sms_credentials_encryption_key | trim | length > 0
-      - opencarwings_sms_credentials_encryption_key != "CHANGE_ME_SMS_CREDENTIALS_ENCRYPTION_KEY"
     fail_msg: "Set required values in ansible/opencarwings.yml and keep opencarwings_backend_port different from :80 to avoid nginx port conflicts."
 
 - name: Validate certbot DNS provider settings

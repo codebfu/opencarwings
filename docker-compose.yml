@@ -19,7 +19,6 @@ services:
       REDIS_PORT: 6379
       SMSAPI_BASE_URL: ${SMSAPI_BASE_URL}
       SMSAPI_TIMEOUT: ${SMSAPI_TIMEOUT}
-      SMS_CREDENTIALS_ENCRYPTION_KEY: ${SMS_CREDENTIALS_ENCRYPTION_KEY}
       TZ: ${TZ}
     restart: always
     user: "app"

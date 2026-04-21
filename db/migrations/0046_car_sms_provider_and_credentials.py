@@ -1,11 +1,11 @@
 import base64
-import hashlib
 
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from django.conf import settings
 from django.db import migrations, models
 import django.utils.timezone
+
+from tculink.utils.secrets import sms_credentials_encryption_key_bytes
 
 
 def _encrypt_value(value, key_bytes):
@@ -19,8 +19,7 @@ def _encrypt_value(value, key_bytes):
 def migrate_sms_provider_and_credentials(apps, schema_editor):
     Car = apps.get_model("db", "Car")
     CarSMSCredential = apps.get_model("db", "CarSMSCredential")
-    configured_key = getattr(settings, "SMS_CREDENTIALS_ENCRYPTION_KEY", "")
-    key_bytes = hashlib.sha256(str(configured_key).encode("utf-8")).digest()
+    key_bytes = sms_credentials_encryption_key_bytes()
 
     for car in Car.objects.all().only("id", "sms_provider", "sms_config"):
         sms_config = car.sms_config if isinstance(car.sms_config, dict) else {}
