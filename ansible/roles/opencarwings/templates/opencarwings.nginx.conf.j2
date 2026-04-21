@@ -13,6 +13,20 @@ server {
     ssl_certificate /etc/letsencrypt/live/{{ opencarwings_domain }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ opencarwings_domain }}/privkey.pem;
 
+    location /static/ {
+        alias {{ opencarwings_app_dir }}/staticfiles/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location /data/ {
+        alias {{ opencarwings_app_dir }}/mediafiles/;
+        access_log off;
+        expires 1d;
+        add_header Cache-Control "public";
+    }
+
     location / {
         proxy_pass {{ opencarwings_proxy_pass_url }};
         proxy_http_version 1.1;

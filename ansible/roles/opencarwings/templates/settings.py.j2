@@ -25,7 +25,17 @@ SECRET_KEY = {{ opencarwings_django_secret_key | to_json }}
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = []
+{% set _allowed_hosts = ['localhost', '127.0.0.1'] %}
+{% if opencarwings_domain | default('') | trim %}
+{% set _ = _allowed_hosts.append(opencarwings_domain | trim) %}
+{% endif %}
+{% if ansible_host is defined and (ansible_host | string | trim) %}
+{% set _ = _allowed_hosts.append(ansible_host | string | trim) %}
+{% endif %}
+{% if ansible_default_ipv4 is defined and ansible_default_ipv4.address is defined and (ansible_default_ipv4.address | string | trim) %}
+{% set _ = _allowed_hosts.append(ansible_default_ipv4.address | string | trim) %}
+{% endif %}
+ALLOWED_HOSTS = {{ _allowed_hosts | unique | list | to_json }}
 
 
 # Application definition
@@ -152,11 +162,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files
-MEDIA_URL = 'data/'
+MEDIA_URL = '/data/'
 MEDIA_ROOT = BASE_DIR / 'mediafiles'
 
 # Default primary key field type
