@@ -3,8 +3,10 @@ import decimal
 import logging
 import os
 import traceback
+from collections import defaultdict, deque
 
 from asgiref.sync import sync_to_async
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -13,6 +15,7 @@ from tculink.gdc_proto import GIDS_NEW_24kWh, WH_PER_GID_GEN1
 from tculink.gdc_proto.parser import parse_gdc_packet
 from tculink.gdc_proto.responses import create_charge_status_response, create_charge_request_response, \
     create_ac_setting_response, create_ac_stop_response, create_config_read, auth_common_dest
+from tculink.utils.password_hash import needs_password_rehash, password_hash, verify_password_hash
 from tculink.utils.notifications import send_vehicle_alert_notification
 from django.utils.translation import gettext as _
 
@@ -29,6 +32,43 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+DEBUG_TCU_LOGS = bool(getattr(settings, "DEBUG", False))
+TCU_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("TCU_RATE_LIMIT_WINDOW_SECONDS", "60"))
+TCU_RATE_LIMIT_CONNECTIONS = int(os.environ.get("TCU_RATE_LIMIT_CONNECTIONS", "120"))
+_connection_tracker = defaultdict(deque)
+
+
+def _should_rate_limit(peer_ip):
+    now = timezone.now().timestamp()
+    window_start = now - TCU_RATE_LIMIT_WINDOW_SECONDS
+    attempts = _connection_tracker[peer_ip]
+
+    while attempts and attempts[0] < window_start:
+        attempts.popleft()
+
+    attempts.append(now)
+    return len(attempts) > TCU_RATE_LIMIT_CONNECTIONS
+
+
+def _redact_tcu_info(tcu_info):
+    if not isinstance(tcu_info, dict):
+        return tcu_info
+    redacted = dict(tcu_info)
+    for key in ("vin", "iccid", "unit_id"):
+        if key in redacted and redacted[key]:
+            value = str(redacted[key])
+            redacted[key] = f"{value[:4]}***{value[-2:]}" if len(value) > 6 else "***"
+    return redacted
+
+
+def _redact_auth(auth_data):
+    if not isinstance(auth_data, dict):
+        return auth_data
+    redacted = dict(auth_data)
+    if "pass" in redacted and redacted["pass"]:
+        redacted["pass"] = "***"
+    return redacted
 
 
 @sync_to_async
@@ -133,6 +173,14 @@ class Command(BaseCommand):
     async def handle_client(self, reader, writer):
         """Handle individual client connections"""
         try:
+            peer_info = writer.get_extra_info("peername") or ("unknown", 0)
+            peer_ip = peer_info[0]
+            if _should_rate_limit(peer_ip):
+                logger.warning("Rate limit exceeded for %s", peer_ip)
+                writer.close()
+                await writer.wait_closed()
+                return
+
             authenticated = False
             while True:
                 data = await reader.read(1024)  # Read up to 1024 bytes
@@ -151,8 +199,12 @@ class Command(BaseCommand):
                     if tcu_info["vin"] is None:
                         raise CommandError("No VIN received")
 
-                    logger.info(f"TCU Payload hex: {data.hex()}")
-                    logger.info(f"TCU Info: {tcu_info}")
+                    if DEBUG_TCU_LOGS:
+                        logger.info("TCU payload bytes: %s", len(data))
+                        logger.debug("TCU Payload hex: %s", data.hex())
+                        logger.debug("TCU Info: %s", _redact_tcu_info(tcu_info))
+                    else:
+                        logger.info("TCU payload received from %s", peer_ip)
                     try:
                         car = await get_car(tcu_info["vin"])
                         if tcu_info.get("tcu_id", None) != car.tcu_model:
@@ -202,12 +254,16 @@ class Command(BaseCommand):
                                     await sync_to_async(new_alert.save)()
                                 else:
                                     username = auth_data["user"]
-                                    password_hash = auth_data["pass"]
+                                    incoming_password = auth_data["pass"]
 
                                     car_owner = await get_car_owner_info(car)
 
-                                    if username == car_owner.username or password_hash == car_owner.tcu_pass_hash:
+                                    password_ok = verify_password_hash(incoming_password, car_owner.tcu_pass_hash)
+                                    if username == car_owner.username and password_ok:
                                         authenticated = True
+                                        if needs_password_rehash(car_owner.tcu_pass_hash):
+                                            car_owner.tcu_pass_hash = password_hash(incoming_password)
+                                            await sync_to_async(car_owner.save)(update_fields=["tcu_pass_hash"])
                                     else:
                                         writer.write(create_charge_status_response(False))
                                         await writer.drain()
@@ -239,11 +295,13 @@ class Command(BaseCommand):
                         return
 
                     if parsed_data.get("gps", None) is not None:
-                        logger.info(f"GPS Data: {parsed_data['gps']}")
+                        if DEBUG_TCU_LOGS:
+                            logger.debug("GPS Data: %s", parsed_data["gps"])
                         await set_gpsinfo(car, parsed_data["gps"])
 
                     if parsed_data["message_type"][0] == 1:
-                        logger.info(f"Auth Data: {parsed_data['auth']}")
+                        if DEBUG_TCU_LOGS:
+                            logger.debug("Auth Data: %s", _redact_auth(parsed_data["auth"]))
                         if car.command_requested and car.command_result == -1:
                             logger.info(f"Command found: {car.command_id} {car.command_requested} {car.command_type} {car.command_payload} {car.command_request_time}")
                             car.command_result = 3
@@ -271,9 +329,10 @@ class Command(BaseCommand):
                             logger.info("No command or another in progress, send success false")
                             writer.write(create_charge_status_response(False))
                     elif parsed_data["message_type"][0] == 3:
-                        logger.info(f"Auth Data: {parsed_data['auth']}")
+                        if DEBUG_TCU_LOGS:
+                            logger.debug("Auth Data: %s", _redact_auth(parsed_data["auth"]))
                         body_type = parsed_data["body_type"]
-                        logger.info(f"Body Type: {body_type}")
+                        logger.info("Body Type: %s", body_type)
 
                         car.command_result = 0
 
@@ -479,7 +538,8 @@ class Command(BaseCommand):
                         await sync_to_async(new_alert.save)()
 
                         car_config = parsed_data["body"]
-                        logger.info(f"Car Config: {car_config}")
+                        if DEBUG_TCU_LOGS:
+                            logger.debug("Car Config received")
                         await set_tcuconfig(car, car_config)
                     else:
                         raise Exception("Invalid message type")
@@ -500,7 +560,7 @@ class Command(BaseCommand):
                     logger.error(e)
                     logger.error(traceback.format_exc())
                     # GDC packets are generally under 1024 bytes, limit to prevent spam
-                    if len(data) < 1024:
+                    if DEBUG_TCU_LOGS and len(data) < 1024:
                         logger.info("Response logged to file for analysis")
                         dtnow = timezone.now().strftime("%Y-%m-%dT%H:%M:%S")
                         with open(f"logs/datalog-unknownmsg-{dtnow}.bin", "wb") as file:

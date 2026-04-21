@@ -38,9 +38,9 @@ api_info = openapi.Info(
     )
 
 schema_view = get_schema_view(
-    public=True,
-    permission_classes=[permissions.AllowAny],
-    authentication_classes=[TokenAuthentication,SessionAuthentication, ],
+    public=False,
+    permission_classes=[permissions.IsAdminUser],
+    authentication_classes=[TokenAuthentication, SessionAuthentication],
 )
 
 decorated_token_view = \
@@ -51,7 +51,6 @@ decorated_token_view = \
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('apidocs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('', views.car_list, name='car_list'),
     path('setup/step1', views.setup_step1, name='setup_1'),
     path('setup/step2', views.setup_step2, name='setup_2'),
@@ -89,4 +88,9 @@ urlpatterns = [
     path('car/<str:vin>/probeviewer', views.probeviewer_home, name='probeviewer_home'),
     path('car/<str:vin>/probeviewer/trip/<int:trip>', views.probeviewer_trip, name='probeviewer_trip'),
     path('api/probe/location/<str:vin>/', api_views.probe_location_hist, name='probe_location_api'),
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+if settings.DEBUG:
+    urlpatterns.append(path('apidocs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'))
+
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

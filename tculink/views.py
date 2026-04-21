@@ -1,5 +1,7 @@
 import io
+import hmac
 import logging
+from copy import deepcopy
 
 from tculink.carwings_proto.applications.cp import handle_cp
 from tculink.carwings_proto.utils import update_car_info
@@ -9,6 +11,7 @@ logger = logging.getLogger("carwings")
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 
 from tculink.carwings_proto.applications.ap import handle_ap
 from tculink.carwings_proto.applications.dj import handle_dj
@@ -17,6 +20,14 @@ from tculink.carwings_proto.applications.pi import handle_pi
 from tculink.carwings_proto.databuffer import decompress_body, parse_carwings_files
 from tculink.carwings_proto.xml import parse_carwings_xml
 from rest_framework.decorators import authentication_classes, permission_classes
+
+def _redact_xml_for_log(parsed_xml):
+    redacted = deepcopy(parsed_xml)
+    auth = redacted.get("authentication")
+    if isinstance(auth, dict) and "password" in auth:
+        auth["password"] = "***"
+    return redacted
+
 
 @authentication_classes([])
 @permission_classes([])
@@ -32,6 +43,16 @@ def carwings_http_gateway(request):
     compressed_data = request.body
     if not compressed_data:
         return HttpResponse(status=400)
+    if len(compressed_data) > int(getattr(settings, "CARWINGS_MAX_HTTP_PAYLOAD_BYTES", 1048576)):
+        logger.warning("Rejected oversized Carwings payload")
+        return HttpResponse(status=413)
+
+    shared_secret = getattr(settings, "CARWINGS_GATEWAY_SHARED_SECRET", "")
+    if shared_secret:
+        header_secret = request.headers.get("X-Carwings-Token", "")
+        if not hmac.compare_digest(header_secret, shared_secret):
+            logger.warning("Rejected Carwings request with invalid gateway token")
+            return HttpResponse(status=401)
 
     decompressed_body = decompress_body(compressed_data)
     files = parse_carwings_files(decompressed_body)
@@ -43,8 +64,8 @@ def carwings_http_gateway(request):
 
     parsed_xml = parse_carwings_xml(files[0]['content'].decode('utf-8'))
 
-    logger.info("XML:")
-    logger.info(parsed_xml)
+    if settings.DEBUG:
+        logger.info("Parsed Carwings XML (redacted): %s", _redact_xml_for_log(parsed_xml))
 
     if "service_info" not in parsed_xml:
         logger.warning("No service info in XML file!")

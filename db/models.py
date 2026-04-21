@@ -128,7 +128,7 @@ class CARWINGSPasswordValidator(validators.RegexValidator):
 class User(AbstractUser):
     username_validator = CARWINGSUsernameValidator()
     tcu_pass_validator = CARWINGSPasswordValidator()
-    tcu_pass_hash = models.CharField(max_length=16, validators=[tcu_pass_validator])
+    tcu_pass_hash = models.CharField(max_length=255)
     timezone = models.CharField(default="UTC", max_length=32)
     username = models.CharField(
         _("username"),

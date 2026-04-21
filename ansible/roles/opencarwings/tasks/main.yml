@@ -23,6 +23,16 @@
     fail_msg: "Set opencarwings_cloudflare_api_token and keep opencarwings_certbot_dns_provider set to cloudflare for DNS-01 certificate issuance."
   when: opencarwings_certbot_enabled | bool
 
+- name: Validate Docker registry credentials for private images
+  ansible.builtin.assert:
+    that:
+      - opencarwings_registry_username | trim | length > 0
+      - opencarwings_registry_username != "CHANGE_ME_GITLAB_REGISTRY_USERNAME"
+      - opencarwings_registry_password | trim | length > 0
+      - opencarwings_registry_password != "CHANGE_ME_GITLAB_REGISTRY_PASSWORD"
+    fail_msg: "Set opencarwings_registry_username and opencarwings_registry_password for private registry pulls."
+  when: opencarwings_registry_auth_enabled | bool
+
 - name: Install system prerequisites
   ansible.builtin.apt:
     name:
@@ -79,6 +89,15 @@
     state: started
     enabled: true
 
+- name: Login to private container registry
+  ansible.builtin.command:
+    cmd: "docker login {{ opencarwings_registry_url }} --username {{ opencarwings_registry_username }} --password-stdin"
+    stdin: "{{ opencarwings_registry_password }}"
+  register: opencarwings_registry_login
+  changed_when: "'Login Succeeded' in opencarwings_registry_login.stdout"
+  no_log: true
+  when: opencarwings_registry_auth_enabled | bool
+
 - name: Create OpenCARWINGS application directory
   ansible.builtin.file:
     path: "{{ opencarwings_app_dir }}"
@@ -112,7 +131,7 @@
     dest: "{{ opencarwings_app_dir }}/carwings/settings.py"
     owner: "{{ opencarwings_owner }}"
     group: "{{ opencarwings_group }}"
-    mode: "0644"
+    mode: "0600"
     force: true
   register: opencarwings_settings_docker
 
@@ -203,6 +222,7 @@
     mode: "0600"
     content: |
       dns_cloudflare_api_token = {{ opencarwings_cloudflare_api_token }}
+  no_log: true
 
 - name: Validate nginx configuration
   ansible.builtin.command: nginx -t

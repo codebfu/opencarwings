@@ -13,6 +13,8 @@
     opencarwings_signup_enabled: true
     opencarwings_smsapi_base_url: "http://smsapi:8000"
     opencarwings_smsapi_timeout: "10"
+    opencarwings_registry_username: "CHANGE_ME_GITLAB_REGISTRY_USERNAME"
+    opencarwings_registry_password: "CHANGE_ME_GITLAB_REGISTRY_PASSWORD"
 
   roles:
     - role: opencarwings

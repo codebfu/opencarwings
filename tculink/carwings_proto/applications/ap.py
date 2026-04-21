@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 
 from db.models import Car
+from tculink.utils.password_hash import verify_password_hash, needs_password_rehash, password_hash
 from tculink.carwings_proto.databuffer import compress_carwings, construct_carwings_filepacket
 from tculink.carwings_proto.xml import carwings_create_xmlfile_content
 import logging
@@ -47,12 +48,15 @@ def handle_ap(xml_data, _):
                                'Carwings settings and press Unit ID Information.')
 
             # confirm user&pass
-            if auth_result and car.owner.username != username or car.owner.tcu_pass_hash != password:
+            if auth_result and (car.owner.username != username or not verify_password_hash(password, car.owner.tcu_pass_hash)):
                 logger.info("Creds mismatch")
                 auth_result = False
                 reason_title = 'Username or Password is incorrect.'
                 reason_desc = ('The username or password is incorrect. '
                                'Please correct your username or password and try again.')
+            elif auth_result and needs_password_rehash(car.owner.tcu_pass_hash):
+                car.owner.tcu_pass_hash = password_hash(password)
+                car.owner.save(update_fields=["tcu_pass_hash"])
         except Car.DoesNotExist:
             logger.info("Car DoesNotExist")
             auth_result = False

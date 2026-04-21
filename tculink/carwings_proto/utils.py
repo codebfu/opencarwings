@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from carwings import settings
 from db.models import Car
+from tculink.utils.password_hash import verify_password_hash, needs_password_rehash, password_hash
 from django.utils.translation import gettext as _
 from unidecode import unidecode
 logger = logging.getLogger("carwings")
@@ -37,8 +38,11 @@ def get_cws_authenticated_car(xml_data, check_user=True) -> Car|None:
                     return car
 
             # confirm user&pass
-            if check_user and (car.owner.username != username or car.owner.tcu_pass_hash != password):
+            if check_user and (car.owner.username != username or not verify_password_hash(password, car.owner.tcu_pass_hash)):
                 return None
+            if check_user and needs_password_rehash(car.owner.tcu_pass_hash):
+                car.owner.tcu_pass_hash = password_hash(password)
+                car.owner.save(update_fields=["tcu_pass_hash"])
 
             return car
         except Car.DoesNotExist:

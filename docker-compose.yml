@@ -21,14 +21,26 @@ services:
       SMSAPI_TIMEOUT: ${SMSAPI_TIMEOUT}
       TZ: ${TZ}
     restart: always
+    user: "app"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
     volumes:
       - ./carwings/:/app/carwings/
       - ./staticfiles/:/app/staticfiles/
       - ./mediafiles/:/app/mediafiles/
       - ./logs/:/app/logs/
     ports:
-      - "${BACKEND_PORT}:80"
+      - "${BACKEND_PORT}:8000"
       - "${TCPSERVER_PORT}:55230"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
   db:
     image: postgres:14
     environment:
@@ -39,8 +51,19 @@ services:
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PSQL_USERNAME} -d ${PSQL_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   redis:
     image: redis:7
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
   smsapi:
     image: git.codebfu.fr:5050/codebfu/smsapi:latest
     restart: unless-stopped

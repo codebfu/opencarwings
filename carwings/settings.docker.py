@@ -26,6 +26,22 @@ SECRET_KEY = 'django-insecure-=0dw6tdkwu$(-0v@2nd#q&!snfyd_8_**3dfxe_vqsfx+gq*67
 DEBUG = True
 
 ALLOWED_HOSTS = []
+CSRF_TRUSTED_ORIGINS = []
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    USE_X_FORWARDED_HOST = True
+    X_FRAME_OPTIONS = 'DENY'
 
 
 # Application definition
@@ -194,6 +210,8 @@ SIGNUP_ENABLED = True
 ACTIVATION_SMS_MESSAGE = "NISSAN_EVIT_TELEMATICS_CENTER"
 SMSAPI_BASE_URL = os.environ.get('SMSAPI_BASE_URL', 'http://smsapi:8000')
 SMSAPI_TIMEOUT = float(os.environ.get('SMSAPI_TIMEOUT', '10'))
+CARWINGS_GATEWAY_SHARED_SECRET = os.environ.get('CARWINGS_GATEWAY_SHARED_SECRET', '')
+CARWINGS_MAX_HTTP_PAYLOAD_BYTES = int(os.environ.get('CARWINGS_MAX_HTTP_PAYLOAD_BYTES', '1048576'))
 
 SMS_PROVIDERS = {
     'smsapi': ('SMS API', 'tculink.sms.smsapi.ProviderSmsApi'),
@@ -228,8 +246,8 @@ CHANNEL_LAYERS = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=31),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=int(os.environ.get('JWT_ACCESS_TOKEN_MINUTES', '30'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.environ.get('JWT_REFRESH_TOKEN_DAYS', '30'))),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
