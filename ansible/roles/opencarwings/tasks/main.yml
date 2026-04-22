@@ -12,6 +12,8 @@
       - opencarwings_backend_port != "127.0.0.1:80"
       - opencarwings_django_secret_key | trim | length > 0
       - opencarwings_django_secret_key != "CHANGE_ME_DJANGO_SECRET_KEY"
+      - opencarwings_container_uid | string is match("^[0-9]+$")
+      - opencarwings_container_gid | string is match("^[0-9]+$")
     fail_msg: "Set required values in ansible/opencarwings.yml and keep opencarwings_backend_port different from :80 to avoid nginx port conflicts."
 
 - name: Validate certbot DNS provider settings
@@ -130,10 +132,29 @@
     src: settings.py.j2
     dest: "{{ opencarwings_app_dir }}/carwings/settings.py"
     owner: "{{ opencarwings_owner }}"
-    group: "{{ opencarwings_group }}"
-    mode: "0644"
+    group: "{{ opencarwings_container_gid }}"
+    mode: "0640"
     force: true
   register: opencarwings_settings_docker
+
+- name: Ensure writable bind-mount directories exist with container ownership
+  ansible.builtin.file:
+    path: "{{ opencarwings_app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ opencarwings_container_uid }}"
+    group: "{{ opencarwings_container_gid }}"
+    mode: "0775"
+  loop:
+    - staticfiles
+    - mediafiles
+    - logs
+
+- name: Ensure application source directory is traversable by container user
+  ansible.builtin.file:
+    path: "{{ opencarwings_app_dir }}/carwings"
+    state: directory
+    group: "{{ opencarwings_container_gid }}"
+    mode: "0755"
 
 - name: Read generated OpenCARWINGS environment file
   ansible.builtin.slurp:
@@ -143,6 +164,8 @@
 - name: Validate generated .env content
   ansible.builtin.assert:
     that:
+      - "'APP_UID=' ~ opencarwings_container_uid in env_content"
+      - "'APP_GID=' ~ opencarwings_container_gid in env_content"
       - "'BACKEND_PORT=' ~ opencarwings_backend_port in env_content"
       - "'TCPSERVER_PORT=' ~ opencarwings_tcpserver_port in env_content"
       - "'PSQL_NAME=' ~ opencarwings_db_name in env_content"

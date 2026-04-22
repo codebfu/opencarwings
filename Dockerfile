@@ -31,7 +31,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 RUN /usr/bin/crontab /app/crontab
 
-RUN addgroup -S app && adduser -S -G app app && chown -R app:app /app
+RUN addgroup -S -g 1000 app && adduser -S -u 1000 -G app app && chown -R app:app /app
 USER app
 
 EXPOSE 8000

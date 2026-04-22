@@ -21,7 +21,7 @@ services:
       SMSAPI_TIMEOUT: ${SMSAPI_TIMEOUT}
       TZ: ${TZ}
     restart: always
-    user: "app"
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
     security_opt:
       - no-new-privileges:true
     cap_drop:
