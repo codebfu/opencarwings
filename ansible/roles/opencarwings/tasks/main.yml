@@ -145,16 +145,17 @@
     group: "{{ opencarwings_container_gid }}"
     mode: "0775"
   loop:
-    - staticfiles
-    - mediafiles
     - logs
 
-- name: Ensure application source directory is traversable by container user
+- name: Ensure bind-mount contents use container ownership
   ansible.builtin.file:
-    path: "{{ opencarwings_app_dir }}/carwings"
+    path: "{{ opencarwings_app_dir }}/{{ item }}"
     state: directory
+    owner: "{{ opencarwings_container_uid }}"
     group: "{{ opencarwings_container_gid }}"
-    mode: "0755"
+    recurse: true
+  loop:
+    - logs
 
 - name: Read generated OpenCARWINGS environment file
   ansible.builtin.slurp:

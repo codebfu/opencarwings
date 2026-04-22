@@ -28,9 +28,7 @@ services:
       - ALL
     pids_limit: 256
     volumes:
-      - ./carwings/:/app/carwings/
-      - ./staticfiles/:/app/staticfiles/
-      - ./mediafiles/:/app/mediafiles/
+      - ./carwings/settings.py:/app/carwings/settings.py:ro
       - ./logs/:/app/logs/
     ports:
       - "${BACKEND_PORT}:8000"
