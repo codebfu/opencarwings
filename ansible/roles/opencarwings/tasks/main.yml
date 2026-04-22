@@ -131,7 +131,7 @@
     dest: "{{ opencarwings_app_dir }}/carwings/settings.py"
     owner: "{{ opencarwings_owner }}"
     group: "{{ opencarwings_group }}"
-    mode: "0600"
+    mode: "0644"
     force: true
   register: opencarwings_settings_docker
 
